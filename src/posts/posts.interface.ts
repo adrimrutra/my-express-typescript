@@ -1,7 +1,8 @@
-interface Post {
-    author: string;
-    content: string;
-    title: string;
-  }
-   
-  export default Post;
+import { Router } from 'express';
+ 
+interface Controller {
+  path: string;
+  router: Router;
+}
+ 
+export default Controller;
