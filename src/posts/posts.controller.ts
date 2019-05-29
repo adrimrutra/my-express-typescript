@@ -4,6 +4,12 @@ import Post from './posts.interface';
 import postModel from './posts.model';
 import HttpException from '../exceptions/HttpException';
 import PostNotFoundException from '../exceptions/PostNotFoundException';
+import authMiddleware from '../middleware/auth.middleware';
+import validationMiddleware from '../middleware/validation.middleware';
+import CreatePostDto from './post.dto';
+import RequestWithUser from '../interfaces/requestWithUser.interface';
+
+
  
 class PostsController implements Controller {
   public path = '/posts';
@@ -17,9 +23,11 @@ class PostsController implements Controller {
   private initializeRoutes() {
     this.router.get(this.path, this.getAllPosts);
     this.router.get(`${this.path}/:id`, this.getPostById);
-    this.router.put(`${this.path}/:id`, this.modifyPost);
-    this.router.delete(`${this.path}/:id`, this.deletePost);
-    this.router.post(this.path, this.createPost);
+    this.router
+      .all(`${this.path}/*`, authMiddleware)
+      .patch(`${this.path}/:id`, validationMiddleware(CreatePostDto, true), this.modifyPost)
+      .delete(`${this.path}/:id`, this.deletePost)
+      .post(this.path, authMiddleware, validationMiddleware(CreatePostDto), this.createPost);
   }
  
   private getAllPosts = (request: express.Request, response: express.Response) => {
@@ -54,13 +62,14 @@ class PostsController implements Controller {
       });
   }
  
-  private createPost = (request: express.Request, response: express.Response) => {
-    const postData: Post = request.body;
-    const createdPost = new this.post(postData);
-    createdPost.save()
-      .then((savedPost) => {
-        response.send(savedPost);
-      });
+  private createPost = async (request: RequestWithUser, response: express.Response) => {
+    const postData: CreatePostDto = request.body;
+    const createdPost = new this.post({
+      ...postData,
+      authorId: request.user._id,
+    });
+    const savedPost = await createdPost.save();
+    response.send(savedPost);
   }
  
   private deletePost = (request: express.Request, response: express.Response, next: express.NextFunction) => {
